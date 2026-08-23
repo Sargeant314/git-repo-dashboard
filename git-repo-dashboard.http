@@ -1,0 +1,6 @@
+@git_repo_dashboard_HostAddress = http://localhost:5293
+
+GET {{git_repo_dashboard_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
