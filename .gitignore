@@ -15,3 +15,6 @@ Properties/launchSettings.json # (Optional: keep if you want to share startup se
 # OS generated files
 .DS_Store
 Thumbs.db
+
+# SQLite 
+projects.db

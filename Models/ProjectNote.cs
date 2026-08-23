@@ -1,4 +1,4 @@
-namespace git-repo-dashboard
+namespace RepoDashboard.Models
 {
     public class ProjectNote
     {

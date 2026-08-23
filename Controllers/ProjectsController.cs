@@ -1,24 +1,36 @@
 using Microsoft.AspNetCore.Mvc;
-using git-repo-dashboard.Models;
+using Microsoft.EntityFrameworkCore;
+using RepoDashboard.Models;
+using RepoDashboard.Data;
 
-namespace git-repo-dashboard.Controllers
+namespace RepoDashboard.Controllers
 {
-    [APIController]
+    [ApiController]
     [Route("api/[controller]")]
     public class ProjectsController : ControllerBase
     {
+        private readonly AppDbContext _context;
+
+        public ProjectsController(AppDbContext context)
+        {
+            _context = context;
+        }
+
+        // GET: api/projects
         [HttpGet]
-        public IActionResult GetProject()
-        [
-            var sampleProject = new ProjectNote
-            {
-                Id = 1,
-                RepoName = "PWA-Checklist",
-                PriorityLevel= "Medium",
-                Status = "Completed",
-                PrivateNotes = "Needs some polish"
-            };
-            return Ok(sampleProject);
-        ]
+        public async Task<ActionResult<IEnumerable<ProjectNote>>> GetProjects()
+        {
+            return await _context.Projects.ToListAsync();
+        }
+
+        // POST: api/projects
+        [HttpPost]
+        public async Task<ActionResult<ProjectNote>> PostProject(ProjectNote project)
+        {
+            _context.Projects.Add(project);
+            await _context.SaveChangesAsync();
+
+            return CreatedAtAction(nameof(GetProjects), new {id = project.Id }, project);
+        }
     }
 }
