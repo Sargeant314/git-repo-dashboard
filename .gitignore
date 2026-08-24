@@ -1,0 +1,20 @@
+# Build results
+[Bb]in/
+[Oo]bj/
+
+# Visual Studio user settings and cache
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# ASP.NET Core specific
+Properties/launchSettings.json # (Optional: keep if you want to share startup settings, but often ignored for personal templates)
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# SQLite 
+projects.db
