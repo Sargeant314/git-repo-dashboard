@@ -32,5 +32,51 @@ namespace RepoDashboard.Controllers
 
             return CreatedAtAction(nameof(GetProjects), new {id = project.Id }, project);
         }
+
+        // PUT: api/projects/5
+        [HttpPut("{id}")]
+        public async Task<IActionResult> PutProject(int id, ProjectNote project)
+        {
+            if (id != project.Id)
+            {
+                return BadRequest();
+            }
+
+            _context.Entry(project).State = EntityState.Modified;
+
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch 
+            {
+                if(!_context.Projects.Any(e => e.Id == id))
+                {
+                    return NotFound();
+                }
+                else
+                {
+                    throw;
+                }
+            }
+
+            return NoContent();
+        }
+
+        // DELETE: api/projects/5
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteProject(int id)
+        {
+            var project = await _context.Projects.FindAsync(id);
+            if(project == null)
+            {
+                return NotFound();
+            }
+
+            _context.Projects.Remove(project);
+            await _context.SaveChangesAsync();
+
+            return NoContent();
+        }
     }
 }
