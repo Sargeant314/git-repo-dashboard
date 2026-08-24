@@ -11,11 +11,68 @@ async function fetchProjects() {
     }
 }
 
+//Add public repositories from a Github user too your projects
+async function fetchGitHubRepos() {
+    const username = document.getElementById('github-username').value.trim();
+    if (!username) {
+        alert('Please enter a GitHub username first.');
+        return;
+    }
+
+    try {
+        // Call our new backend bulk-import endpoint
+        const response = await fetch(`/api/projects/import-github/${username}`, {
+            method: 'POST'
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            alert(`Successfully imported ${data.importedCount} new repositories to your dataset!`);
+            
+            // Clear the input and reload the grid from the database
+            document.getElementById('github-username').value = '';
+            fetchProjects();
+        } else {
+            alert('Failed to import GitHub repositories.');
+        }
+    } catch (err) {
+        console.error('Error importing GitHub repos:', err);
+        alert('Error connecting to the server.');
+    }
+}
+
+async function importRepoToNotes(name, description) {
+    const projectData = {
+        repoName: name,
+        priorityLevel: 'Medium',
+        status: 'Backlog',
+        privateNotes: description || 'Imported from GitHub.'
+    };
+
+    try {
+        const response = await fetch(`${API_URL}/import`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(projectData)
+        });
+
+        if (response.ok) {
+            alert(`Successfully imported "${name}" to your database!`);
+        } else if (response.status === 409) {
+            alert(`"${name}" is already in your database (duplicate skipped).`);
+        } else {
+            alert('Failed to import repository.');
+        }
+    } catch (err) {
+        console.error('Error importing repo:', err);
+    }
+}
+
 //Generate a card for each project and append to project grid
 function renderProjects(projects) {
     const grid = document.getElementById('project-grid');
     if (projects.length === 0) {
-        grid.innerHTML = `<div class="col-span-full text-center py-12 text-gray-500">No project notes found. Click "Add Project Note" to get started!</div>`;
+        grid.innerHTML = `<div class="col-span-full text-center py-12 text-gray-500">No project notes found. Click "Add Project Note" or import from GitHub to get started!</div>`;
         return;
     }
 

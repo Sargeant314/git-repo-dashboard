@@ -23,6 +23,19 @@ namespace RepoDashboard.Controllers
             return await _context.Projects.ToListAsync();
         }
 
+        /*
+        * Fetch all public repositories for a username from Github
+        * GET: github/{username}
+        */
+        [HttpGet("github/{username}")]
+        public async Task<ActionResult<IEnumerable<RepoDashboard.Services.GitHubRepoDto>>> GetGitHubRepos(
+            string username,
+            [FromServices] RepoDashboard.Services.GitHubService gitHubService)
+        {
+            var repos = await gitHubService.GetUserReposAsync(username);
+            return Ok(repos);
+        }
+
         // POST: api/projects
         [HttpPost]
         public async Task<ActionResult<ProjectNote>> PostProject(ProjectNote project)
@@ -31,6 +44,45 @@ namespace RepoDashboard.Controllers
             await _context.SaveChangesAsync();
 
             return CreatedAtAction(nameof(GetProjects), new {id = project.Id }, project);
+        }
+
+        // POST: api/projects/import-github/{username}
+        [HttpPost("import-github/{username}")]
+        public async Task<IActionResult> BulkImportGitHubRepos(
+            string username, 
+            [FromServices] RepoDashboard.Services.GitHubService gitHubService)
+        {
+            // Fetch repos from GitHub
+            var repos = await gitHubService.GetUserReposAsync(username);
+            int addedCount = 0;
+
+            // Loop through and add them to the database if they don't exist
+            foreach (var repo in repos)
+            {
+                bool exists = await _context.Projects
+                    .AnyAsync(p => p.RepoName.ToLower() == repo.Name.ToLower());
+
+                if (!exists)
+                {
+                    var newProject = new ProjectNote
+                    {
+                        RepoName = repo.Name,
+                        PrivateNotes = repo.Description ?? "Imported from GitHub.",
+                        PriorityLevel = "Medium",
+                        Status = "Backlog"
+                    };
+                    
+                    _context.Projects.Add(newProject);
+                    addedCount++;
+                }
+            }
+            
+            if (addedCount > 0)
+            {
+                await _context.SaveChangesAsync();
+            }
+
+            return Ok(new { importedCount = addedCount });
         }
 
         // PUT: api/projects/5

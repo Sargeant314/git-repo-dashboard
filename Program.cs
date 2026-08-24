@@ -12,6 +12,8 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 builder.Services.AddControllers();
 
+builder.Services.AddHttpClient<RepoDashboard.Services.GitHubService>();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
