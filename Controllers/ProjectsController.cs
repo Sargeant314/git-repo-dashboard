@@ -52,37 +52,56 @@ namespace RepoDashboard.Controllers
             string username, 
             [FromServices] RepoDashboard.Services.GitHubService gitHubService)
         {
-            // Fetch repos from GitHub
             var repos = await gitHubService.GetUserReposAsync(username);
             int addedCount = 0;
 
-            // Loop through and add them to the database if they don't exist
             foreach (var repo in repos)
             {
-                bool exists = await _context.Projects
-                    .AnyAsync(p => p.RepoName.ToLower() == repo.Name.ToLower());
-
+                bool exists = await _context.Projects.AnyAsync(p => p.RepoName.ToLower() == repo.Name.ToLower());
                 if (!exists)
                 {
-                    var newProject = new ProjectNote
+                    _context.Projects.Add(new ProjectNote
                     {
                         RepoName = repo.Name,
                         PrivateNotes = repo.Description ?? "Imported from GitHub.",
                         PriorityLevel = "Medium",
-                        Status = "Backlog"
-                    };
-                    
-                    _context.Projects.Add(newProject);
+                        Status = "Backlog",
+                        Language = repo.Language ?? "Unknown" // Save Language
+                    });
                     addedCount++;
                 }
             }
-            
-            if (addedCount > 0)
-            {
-                await _context.SaveChangesAsync();
-            }
 
+            if (addedCount > 0) await _context.SaveChangesAsync();
             return Ok(new { importedCount = addedCount });
+        }
+
+        // POST: api/projects/import-github/{username}/{repoName}
+        [HttpPost("import-github/{username}/{repoName}")]
+        public async Task<IActionResult> ImportSingleGitHubRepo(
+            string username, 
+            string repoName,
+            [FromServices] RepoDashboard.Services.GitHubService gitHubService)
+        {
+            var repo = await gitHubService.GetSingleRepoAsync(username, repoName);
+            if (repo == null) return NotFound(new { message = "Repository not found on GitHub." });
+
+            bool exists = await _context.Projects.AnyAsync(p => p.RepoName.ToLower() == repo.Name.ToLower());
+            if (exists) return Conflict(new { message = "Repository already exists in your notes." });
+
+            var newProject = new ProjectNote
+            {
+                RepoName = repo.Name,
+                PrivateNotes = repo.Description ?? "Imported from GitHub.",
+                PriorityLevel = "Medium",
+                Status = "Backlog",
+                Language = repo.Language ?? "Unknown" // Save Language
+            };
+            
+            _context.Projects.Add(newProject);
+            await _context.SaveChangesAsync();
+
+            return Ok(newProject);
         }
 
         // PUT: api/projects/5

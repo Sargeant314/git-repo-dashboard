@@ -16,9 +16,12 @@
                 <p class="text-sm text-gray-400 mt-1">Manage your development repositories, priorities, and notes.</p>
             </div>
             <div class="flex gap-2 items-center">
-                <input type="text" id="github-username" placeholder="GitHub Username..." class="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
-                <button onclick="fetchGitHubRepos()" class="bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition cursor-pointer">
-                    Fetch GitHub Repos
+                <input type="text" id="github-input" placeholder="username or username/repo" class="w-56 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+                <button onclick="importSingleRepo()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition cursor-pointer">
+                    Fetch Repo
+                </button>
+                <button onclick="importAllRepos()" class="bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition cursor-pointer">
+                    Fetch All
                 </button>
             </div>
             <button onclick="openModal()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg font-medium transition cursor-pointer">

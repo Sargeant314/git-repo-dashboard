@@ -30,6 +30,19 @@ namespace RepoDashboard.Services
 
             return repos ?? Enumerable.Empty<GitHubRepoDto>();
         }
+
+        public async Task<GitHubRepoDto?> GetSingleRepoAsync(string username, string repoName)
+        {
+            var response = await _httpClient.GetAsync($"https://api.github.com/repos/{username}/{repoName}");
+            
+            if (!response.IsSuccessStatusCode)
+            {
+                return null;
+            }
+
+            var jsonStream = await response.Content.ReadAsStreamAsync();
+            return await JsonSerializer.DeserializeAsync<GitHubRepoDto>(jsonStream);
+        }
     }
 
     public class GitHubRepoDto

@@ -13,58 +13,99 @@ async function fetchProjects() {
 
 //Add public repositories from a Github user too your projects
 async function fetchGitHubRepos() {
-    const username = document.getElementById('github-username').value.trim();
-    if (!username) {
-        alert('Please enter a GitHub username first.');
+            const input = document.getElementById('github-username').value.trim();
+            if (!input) {
+                alert('Please enter a GitHub username or username/repo.');
+                return;
+            }
+
+            try {
+                // Determine if it's a single repo (contains '/') or bulk user import
+                let url = '';
+                if (input.includes('/')) {
+                    const [username, repoName] = input.split('/');
+                    url = `/api/projects/import-github/${username}/${repoName}`;
+                } else {
+                    url = `/api/projects/import-github/${input}`;
+                }
+
+                const response = await fetch(url, { method: 'POST' });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    const msg = input.includes('/') 
+                        ? `Successfully imported ${input}!` 
+                        : `Successfully imported ${data.importedCount} new repositories!`;
+                    alert(msg);
+                    
+                    document.getElementById('github-username').value = '';
+                    fetchProjects();
+                } else if (response.status === 409) {
+                    alert('This repository is already in your dataset.');
+                } else {
+                    alert('Failed to import from GitHub. Check the username/repo name.');
+                }
+            } catch (err) {
+                console.error('Error importing:', err);
+            }
+        }
+
+//listener to import one repo belonging to a user from github
+async function importSingleRepo() {
+    const input = document.getElementById('github-input').value.trim();
+    
+    if (!input || !input.includes('/')) {
+        alert('For a single repo, please use the format: username/reponame');
+        return;
+    }
+
+    const [username, repoName] = input.split('/');
+
+    try {
+        const response = await fetch(`/api/projects/import-github/${username}/${repoName}`, { method: 'POST' });
+        
+        if (response.ok) {
+            alert(`Successfully imported ${input}!`);
+            document.getElementById('github-input').value = '';
+            fetchProjects();
+        } else if (response.status === 409) {
+            alert('This repository is already in your dataset.');
+        } else if (response.status === 404) {
+            alert('Repository not found on GitHub.');
+        } else {
+            alert('Failed to import. Check the spelling.');
+        }
+    } catch (err) {
+        console.error('Error importing single repo:', err);
+    }
+}
+
+//listener to import all repo's belonging to a user from github
+async function importAllRepos() {
+    const input = document.getElementById('github-input').value.trim();
+    
+    if (!input) {
+        alert('Please enter a GitHub username.');
+        return;
+    }
+    if (input.includes('/')) {
+        alert('For bulk import, just enter the username (no slashes).');
         return;
     }
 
     try {
-        // Call our new backend bulk-import endpoint
-        const response = await fetch(`/api/projects/import-github/${username}`, {
-            method: 'POST'
-        });
+        const response = await fetch(`/api/projects/import-github/${input}`, { method: 'POST' });
         
         if (response.ok) {
             const data = await response.json();
-            alert(`Successfully imported ${data.importedCount} new repositories to your dataset!`);
-            
-            // Clear the input and reload the grid from the database
-            document.getElementById('github-username').value = '';
+            alert(`Successfully imported ${data.importedCount} new repositories!`);
+            document.getElementById('github-input').value = '';
             fetchProjects();
         } else {
-            alert('Failed to import GitHub repositories.');
+            alert('Failed to fetch repositories for this user.');
         }
     } catch (err) {
-        console.error('Error importing GitHub repos:', err);
-        alert('Error connecting to the server.');
-    }
-}
-
-async function importRepoToNotes(name, description) {
-    const projectData = {
-        repoName: name,
-        priorityLevel: 'Medium',
-        status: 'Backlog',
-        privateNotes: description || 'Imported from GitHub.'
-    };
-
-    try {
-        const response = await fetch(`${API_URL}/import`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(projectData)
-        });
-
-        if (response.ok) {
-            alert(`Successfully imported "${name}" to your database!`);
-        } else if (response.status === 409) {
-            alert(`"${name}" is already in your database (duplicate skipped).`);
-        } else {
-            alert('Failed to import repository.');
-        }
-    } catch (err) {
-        console.error('Error importing repo:', err);
+        console.error('Error importing bulk repos:', err);
     }
 }
 
@@ -81,6 +122,7 @@ function renderProjects(projects) {
             <div>
                 <div class="flex justify-between items-start mb-3">
                     <h3 class="text-lg font-bold text-white break-all">${escapeHtml(p.repoName)}</h3>
+                    <span class="px-2.5 py-1 text-xs font-semibold rounded-full bg-gray-800 text-gray-300 border border-gray-600">${escapeHtml(p.language || 'Code')}</span>
                     <span class="px-2.5 py-1 text-xs font-semibold rounded-full ${getPriorityBadge(p.priorityLevel)}">${escapeHtml(p.priorityLevel)}</span>
                 </div>
                 <p class="text-sm text-gray-300 mb-4 bg-gray-900/50 p-3 rounded-lg border border-gray-800/80">${escapeHtml(p.privateNotes || 'No notes provided.')}</p>
