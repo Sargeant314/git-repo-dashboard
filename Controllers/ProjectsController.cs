@@ -2,9 +2,12 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using RepoDashboard.Models;
 using RepoDashboard.Data;
+using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
 
 namespace RepoDashboard.Controllers
 {
+    [Authorize]
     [ApiController]
     [Route("api/[controller]")]
     public class ProjectsController : ControllerBase
@@ -20,7 +23,10 @@ namespace RepoDashboard.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<ProjectNote>>> GetProjects()
         {
-            return await _context.Projects.ToListAsync();
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            
+            // Only fetch projects owned by the logged-in user
+            return await _context.Projects.Where(p => p.UserId == userId).ToListAsync();
         }
 
         /*
@@ -32,6 +38,7 @@ namespace RepoDashboard.Controllers
             string username,
             [FromServices] RepoDashboard.Services.GitHubService gitHubService)
         {
+            // Read-only external API call; no DB filtering needed here
             var repos = await gitHubService.GetUserReposAsync(username);
             return Ok(repos);
         }
@@ -40,10 +47,13 @@ namespace RepoDashboard.Controllers
         [HttpPost]
         public async Task<ActionResult<ProjectNote>> PostProject(ProjectNote project)
         {
+            // Assign the new project to the logged-in user
+            project.UserId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+
             _context.Projects.Add(project);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction(nameof(GetProjects), new {id = project.Id }, project);
+            return CreatedAtAction(nameof(GetProjects), new { id = project.Id }, project);
         }
 
         // POST: api/projects/import-github/{username}
@@ -52,21 +62,24 @@ namespace RepoDashboard.Controllers
             string username, 
             [FromServices] RepoDashboard.Services.GitHubService gitHubService)
         {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
             var repos = await gitHubService.GetUserReposAsync(username);
             int addedCount = 0;
 
             foreach (var repo in repos)
             {
-                bool exists = await _context.Projects.AnyAsync(p => p.RepoName.ToLower() == repo.Name.ToLower());
+                // Check if THIS user already has THIS repo
+                bool exists = await _context.Projects.AnyAsync(p => p.UserId == userId && p.RepoName.ToLower() == repo.Name.ToLower());
                 if (!exists)
                 {
                     _context.Projects.Add(new ProjectNote
                     {
+                        UserId = userId, // Assign to user
                         RepoName = repo.Name,
                         PrivateNotes = repo.Description ?? "Imported from GitHub.",
                         PriorityLevel = "Medium",
                         Status = "Backlog",
-                        Language = repo.Language ?? "Unknown" // Save Language
+                        Language = repo.Language ?? "Unknown" 
                     });
                     addedCount++;
                 }
@@ -83,19 +96,23 @@ namespace RepoDashboard.Controllers
             string repoName,
             [FromServices] RepoDashboard.Services.GitHubService gitHubService)
         {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
             var repo = await gitHubService.GetSingleRepoAsync(username, repoName);
+            
             if (repo == null) return NotFound(new { message = "Repository not found on GitHub." });
 
-            bool exists = await _context.Projects.AnyAsync(p => p.RepoName.ToLower() == repo.Name.ToLower());
+            // Check if THIS user already has THIS repo
+            bool exists = await _context.Projects.AnyAsync(p => p.UserId == userId && p.RepoName.ToLower() == repo.Name.ToLower());
             if (exists) return Conflict(new { message = "Repository already exists in your notes." });
 
             var newProject = new ProjectNote
             {
+                UserId = userId, // Assign to user
                 RepoName = repo.Name,
                 PrivateNotes = repo.Description ?? "Imported from GitHub.",
                 PriorityLevel = "Medium",
                 Status = "Backlog",
-                Language = repo.Language ?? "Unknown" // Save Language
+                Language = repo.Language ?? "Unknown" 
             };
             
             _context.Projects.Add(newProject);
@@ -113,24 +130,23 @@ namespace RepoDashboard.Controllers
                 return BadRequest();
             }
 
-            _context.Entry(project).State = EntityState.Modified;
-
-            try
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            
+            // Find the existing project and verify this user owns it
+            var existingProject = await _context.Projects.FirstOrDefaultAsync(p => p.Id == id && p.UserId == userId);
+            if (existingProject == null)
             {
-                await _context.SaveChangesAsync();
-            }
-            catch 
-            {
-                if(!_context.Projects.Any(e => e.Id == id))
-                {
-                    return NotFound();
-                }
-                else
-                {
-                    throw;
-                }
+                return NotFound();
             }
 
+            // Update only the allowed fields
+            existingProject.RepoName = project.RepoName;
+            existingProject.PriorityLevel = project.PriorityLevel;
+            existingProject.Status = project.Status;
+            existingProject.PrivateNotes = project.PrivateNotes;
+            existingProject.Language = project.Language;
+
+            await _context.SaveChangesAsync();
             return NoContent();
         }
 
@@ -138,8 +154,12 @@ namespace RepoDashboard.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteProject(int id)
         {
-            var project = await _context.Projects.FindAsync(id);
-            if(project == null)
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            
+            // Find the project and verify this user owns it before deleting
+            var project = await _context.Projects.FirstOrDefaultAsync(p => p.Id == id && p.UserId == userId);
+            
+            if (project == null)
             {
                 return NotFound();
             }
