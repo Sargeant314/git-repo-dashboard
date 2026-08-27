@@ -2,12 +2,15 @@ namespace RepoDashboard.Models
 {
     public class ProjectNote
     {
-        public int Id {get; set;}
-        public string RepoName {get; set;}
-        public string PriorityLevel {get; set;} //High, Med, Low
-        public string Status {get; set;}
-        public string PrivateNotes { get; set; }
-
+        public int Id { get; set; }
+        
+        public string UserId { get; set; } = string.Empty;
+        
+        public string RepoName { get; set; } = string.Empty;
+        public string PriorityLevel { get; set; } = string.Empty;
+        public string Status { get; set; } = string.Empty;
+        public string PrivateNotes { get; set; } = string.Empty;
+        
         public string? Language { get; set; }
     }
 }
