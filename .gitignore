@@ -20,3 +20,6 @@ Thumbs.db
 projects.db
 projects.db-shm
 projects.db-wal
+
+#build for azure
+publish/
